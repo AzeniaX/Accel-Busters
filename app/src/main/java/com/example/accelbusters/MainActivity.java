@@ -113,9 +113,13 @@ import androidx.core.content.ContextCompat;
 import android.hardware.SensorManager;
 import android.content.pm.PackageManager;
 
+import com.example.accelbusters.AlertManager.AlertManager;
 import com.example.accelbusters.sensormanager.GpsManager;
 import com.example.accelbusters.sensormanager.AccelerometerManager;
 import com.example.accelbusters.ExternalCommunication.BeaconScanner;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -123,6 +127,7 @@ public class MainActivity extends AppCompatActivity {
     private GpsManager gpsManager;
     private AccelerometerManager accelerometerManager;
     private BeaconScanner beaconScanner;
+    private AlertManager alertManager;
     private Handler handler;
     private Runnable updateUIRunnable;
 
@@ -148,22 +153,6 @@ public class MainActivity extends AppCompatActivity {
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometerManager = new AccelerometerManager(sensorManager, tvAcceleration);
 
-        // 请求位置权限
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
-        } else {
-            // 启动 GPS 更新
-            gpsManager.startLocationUpdates(this);
-        }
-
-        // 请求蓝牙权限
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN}, BLUETOOTH_PERMISSION_REQUEST_CODE);
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, BLUETOOTH_CONNECT_PERMISSION_REQUEST_CODE);
-        }
         // 初始化BeaconScanner
         beaconScanner = new BeaconScanner(this);
         beaconScanner.setBeaconListener(new BeaconScanner.BeaconListener() {
@@ -180,9 +169,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // BeaconScanner开始扫描
-        beaconScanner.startScanning();
+        // 初始化 AlertManager
+        alertManager = new AlertManager(this);
 
+        checkAndRequestPermissions();
         // 启动加速度传感器更新
         accelerometerManager.startAccelerometerUpdates();
 
@@ -196,6 +186,41 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         handler.post(updateUIRunnable);
+
+        //测试报警功能
+//        alertManager.triggerLevel2Alert();    // 2级报警
+//        alertManager.stopLevel2Alert();       // 2级报警停止
+//        alertManager.triggerLevel3Alert();    // 3级报警
+//        alertManager.triggerLevel4Alert();    // 4及报警
+
+    }
+
+    private void checkAndRequestPermissions() {
+        List<String> permissionsNeeded = new ArrayList<>();
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN);
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+
+        if (!permissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsNeeded.toArray(new String[0]), LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
+            // 如果权限已经全部通过，启动 GPS 更新
+            gpsManager.startLocationUpdates(this);
+            // BeaconScanner开始扫描
+            beaconScanner.startScanning();
+        }
     }
 
     private void updateUI() {
@@ -217,25 +242,25 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 权限请求被批准，启动 GPS 更新
+            boolean allGranted = true;
+
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+
+            if (allGranted) {
+                // 所有权限被批准，启动相关功能
                 gpsManager.startLocationUpdates(this);
+                beaconScanner.startScanning();
             } else {
-                Toast.makeText(this, "位置权限被拒绝", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "必要权限被拒绝，应用无法正常运行", Toast.LENGTH_SHORT).show();
             }
         }
-
-        if (requestCode == BLUETOOTH_PERMISSION_REQUEST_CODE || requestCode == BLUETOOTH_CONNECT_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Bluetooth Permissions granted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Bluetooth Permissions denied", Toast.LENGTH_SHORT).show();
-            }
-        }
-
-
-
     }
+
 
     @Override
     protected void onDestroy() {

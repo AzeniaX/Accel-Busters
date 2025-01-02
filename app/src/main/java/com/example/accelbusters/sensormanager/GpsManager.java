@@ -57,7 +57,6 @@ public class GpsManager {
                 }
             }
         };
-
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
