@@ -6,6 +6,7 @@ import android.content.Context;
 import android.location.Location;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -18,6 +19,7 @@ import java.util.LinkedList;
 
 public class GpsManager {
 
+    private static final String TAG = "GPS";
     private static final int SPEED_HISTORY_SIZE = 5;
     private static final double MOVEMENT_THRESHOLD = 1.0; // 阈值为1米
     private static final double GPS_ERROR_MARGIN = 0.2; // GPS误差 0.2m
@@ -43,7 +45,7 @@ public class GpsManager {
         LocationRequest locationRequest = LocationRequest.create();
         locationRequest.setInterval(1000); // 每秒更新一次
         locationRequest.setFastestInterval(500); // 最快每半秒更新
-        locationRequest.setSmallestDisplacement(1); // 最小位移1米
+        locationRequest.setSmallestDisplacement(0); // 最小位移0米
         locationRequest.setPriority(PRIORITY_HIGH_ACCURACY);
         FusedLocationProviderClient fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
 
@@ -92,7 +94,7 @@ public class GpsManager {
                 }
             }
             previousLocation = location;
-
+//            Log.d(TAG, "location"+location);
             // 更新UI
             tvLocation.setText("Latitude: " + location.getLatitude() + ", Longitude: " + location.getLongitude());
             tvSpeed.setText("Speed: " + String.format("%.2f", speed) + " m/s");
@@ -116,7 +118,7 @@ public class GpsManager {
 
     private double calculateThreshold(double currentSpeed) {
         // 计算阈值X1
-        return currentSpeed * skippedUpdates + GPS_ERROR_MARGIN;
+        return currentSpeed * 1.2 * (skippedUpdates + 1) + GPS_ERROR_MARGIN;
     }
 
     private void addSpeedToHistory(double speed) {
