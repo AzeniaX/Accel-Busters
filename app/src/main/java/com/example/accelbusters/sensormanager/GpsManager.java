@@ -1,5 +1,7 @@
 package com.example.accelbusters.sensormanager;
 
+import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
+
 import android.content.Context;
 import android.location.Location;
 import android.os.Handler;
@@ -16,16 +18,19 @@ import java.util.LinkedList;
 
 public class GpsManager {
 
-    private static final String TAG = "GpsManager";
-    private static final int SPEED_HISTORY_SIZE = 5; // 存储最近5次的速度
-    private static final double MOVEMENT_THRESHOLD = 1.0; // 设置阈值为1米
+    private static final int SPEED_HISTORY_SIZE = 5;
+    private static final double MOVEMENT_THRESHOLD = 1.0; // 阈值为1米
+    private static final double GPS_ERROR_MARGIN = 0.2; // GPS误差 0.2m
 
     private double speed = 0.0;
     private LinkedList<Double> speedHistory = new LinkedList<>();
     private Handler handler;
     private Location previousLocation;
-    private TextView tvLocation, tvSpeed;
+    private LinkedList<Location> initialLocations = new LinkedList<>(); // 存储最初的3个GPS点
+    private Location centroidLocation; // 重心位置
+    private int skippedUpdates = 0; // 未发送的更新次数
 
+    private TextView tvLocation, tvSpeed;
     private LocationCallback locationCallback;
 
     public GpsManager(Context context, TextView locationTextView, TextView speedTextView) {
@@ -35,15 +40,13 @@ public class GpsManager {
     }
 
     public void startLocationUpdates(Context context) {
-        // 设置GPS请求参数
         LocationRequest locationRequest = LocationRequest.create();
         locationRequest.setInterval(1000); // 每秒更新一次
         locationRequest.setFastestInterval(500); // 最快每半秒更新
-        locationRequest.setSmallestDisplacement(1); // 设置最小位移，只有当用户移动超过5米时才会触发更新
-
+        locationRequest.setSmallestDisplacement(1); // 最小位移1米
+        locationRequest.setPriority(PRIORITY_HIGH_ACCURACY);
         FusedLocationProviderClient fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
 
-        // 请求位置更新
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -52,42 +55,73 @@ public class GpsManager {
 
                 Location location = locationResult.getLastLocation();
                 if (location != null) {
-                    // 更新位置
-                    updateLocation(location);
+                    processLocation(location);
                 }
             }
         };
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
-    private void updateLocation(Location location) {
-        // 计算速度，更新UI
-        if (previousLocation != null) {
-            double distance = previousLocation.distanceTo(location);  // 距离
-            long timeDelta = location.getTime() - previousLocation.getTime();  // 时间差
+    private void processLocation(Location location) {
+        if (initialLocations.size() < 3) {
+            // 收集最初的3个GPS点
+            initialLocations.add(location);
+            if (initialLocations.size() == 3) {
+                calculateCentroid(); // 计算重心
+            }
+        } else {
+            // 计算当前点与前一点的距离
+            if (previousLocation != null) {
+                double distance = previousLocation.distanceTo(location);
+                long timeDelta = location.getTime() - previousLocation.getTime();
 
-            // 计算速度
-            if (timeDelta > 0) {
-                double currentSpeed = distance / (timeDelta / 1000.0);  // 单位：米/秒
+                if (timeDelta > 0) {
+                    double currentSpeed = distance / (timeDelta / 1000.0);
 
-                // 如果移动距离超过阈值，则更新速度
-                if (distance > MOVEMENT_THRESHOLD) {
-                    addSpeedToHistory(currentSpeed); // 记录当前速度
-                    speed = getAverageSpeed();  // 获取加权平均速度
+                    double X1 = calculateThreshold(currentSpeed);
+                    if (distance <= X1) {
+                        // 正常更新
+                        addSpeedToHistory(currentSpeed);
+                        speed = getAverageSpeed();
+                        skippedUpdates = 0; // 重置跳过计数
+                    } else {
+                        // 忽略异常数据
+                        skippedUpdates++;
+                        return;
+                    }
                 }
             }
-        }
-        previousLocation = location;
+            previousLocation = location;
 
-        // 更新UI
-        tvLocation.setText("Latitude: " + location.getLatitude() + ", Longitude: " + location.getLongitude());
-        tvSpeed.setText("Speed: " + String.format("%.2f", speed) + " m/s");
+            // 更新UI
+            tvLocation.setText("Latitude: " + location.getLatitude() + ", Longitude: " + location.getLongitude());
+            tvSpeed.setText("Speed: " + String.format("%.2f", speed) + " m/s");
+        }
+    }
+
+    private void calculateCentroid() {
+        // 使用3个点计算重心
+        double x = 0, y = 0;
+        for (Location loc : initialLocations) {
+            x += loc.getLatitude();
+            y += loc.getLongitude();
+        }
+        x /= 3;
+        y /= 3;
+
+        centroidLocation = new Location("");
+        centroidLocation.setLatitude(x);
+        centroidLocation.setLongitude(y);
+    }
+
+    private double calculateThreshold(double currentSpeed) {
+        // 计算阈值X1
+        return currentSpeed * skippedUpdates + GPS_ERROR_MARGIN;
     }
 
     private void addSpeedToHistory(double speed) {
-        // 存储并更新速度历史
         if (speedHistory.size() >= SPEED_HISTORY_SIZE) {
-            speedHistory.poll(); // 删除最旧的速度数据
+            speedHistory.poll();
         }
         speedHistory.add(speed);
     }
