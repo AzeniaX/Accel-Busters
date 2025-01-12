@@ -28,6 +28,7 @@ public class AlertManager {
     private final Context context;
     private Handler handler = new Handler();
     private boolean isLevel2AlertRepeated = false; // 用于记录Level 2是否已重复通知
+    private ToneGenerator toneGenerator;
     public AlertManager(Context context) {
         this.context = context;
         createNotificationChannel();
@@ -109,6 +110,21 @@ public class AlertManager {
         handler.removeCallbacksAndMessages(null); // 清除所有挂起的回调任务
     }
 
+    public void stopAllAlerts() {
+        // 停止 Level 2 的警报
+        stopLevel2Alert();
+
+        // 清除 handler 中的所有回调任务（用于 Level 3 警报）
+        handler.removeCallbacksAndMessages(null);
+
+        // 停止 Level 4 的持续警报音
+        if (toneGenerator != null) {
+            toneGenerator.stopTone(); // 停止音调
+            toneGenerator.release();  // 释放资源
+            toneGenerator = null;
+        }
+    }
+
     // 显示通知
     private void showNotification(String title, String content) {
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -133,8 +149,10 @@ public class AlertManager {
 
     // 播放通知音
     private void playNotificationSound() {
-        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-        toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 1000); // 持续1秒
+        if(toneGenerator == null){
+            toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+        }
+            toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 1000); // 持续1秒
     }
 
     // 播放警报音（间隔播放）
@@ -142,7 +160,9 @@ public class AlertManager {
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+                if(toneGenerator == null){
+                    toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+                }
                 toneGenerator.startTone(ToneGenerator.TONE_CDMA_HIGH_L, 1000); // 持续1秒
                 handler.postDelayed(this, interval); // 间隔播放
             }
@@ -151,7 +171,9 @@ public class AlertManager {
 
     // 播放持续的警报音
     private void playContinuousAlarm() {
-        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+        if(toneGenerator == null){
+            toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+        }
         toneGenerator.startTone(ToneGenerator.TONE_CDMA_HIGH_L); // 持续播放
     }
 

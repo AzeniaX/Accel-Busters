@@ -47,4 +47,42 @@
         android:text="Beacon Info"
         android:textSize="18sp" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="319dp">
+
+        <Button
+            android:id="@+id/button"
+            android:layout_width="125dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="250dp"
+            android:onClick="level2test"
+            android:text="Level2" />
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="125dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="250dp"
+            android:onClick="level3test"
+            android:text="Level3" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="125dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="250dp"
+            android:onClick="level4test"
+            android:text="Level4" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <Button
+            android:id="@+id/button3"
+            android:layout_width="125dp"
+            android:layout_height="wrap_content"
+            android:onClick="stopAlert"
+            android:text="stop" />
+    </LinearLayout>
 </LinearLayout>

@@ -105,6 +105,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -271,5 +272,17 @@ public class MainActivity extends AppCompatActivity {
         accelerometerManager.stopAccelerometerUpdates();
         // 停止蓝牙信标扫描
         beaconScanner.stopScanning();
+    }
+    public void level2test(View v){
+        alertManager.triggerLevel2Alert();    // 2级报警
+    }
+    public void level3test(View v){
+        alertManager.triggerLevel3Alert();    // 3级报警
+    }
+    public void level4test(View v){
+        alertManager.triggerLevel4Alert();    // 4及报警
+    }
+    public void stopAlert(View v){
+        alertManager.stopAllAlerts();         // 停止报警
     }
 }
